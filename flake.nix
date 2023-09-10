@@ -16,24 +16,27 @@
     , flake-utils
     }:
 
-    flake-utils.lib.eachDefaultSystem (system:
+    flake-utils.lib.eachDefaultSystem
+      (system:
 
-    let
-      pkgs = import nixpkgs { inherit system; };
+      let
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [ self.overlays.default ];
+        };
+      in
+      {
 
-      _mavlink = pkgs.callPackage ./pkgs/mavlink { };
-      _mavsdk = pkgs.callPackage ./pkgs/mavsdk { mavlink=_mavlink; };
+        formatter = pkgs.nixpkgs-fmt;
 
-    in
-    {
-      formatter = pkgs.nixpkgs-fmt;
+        devShells.default = with pkgs; pkgs.mkShell {
+          packages = [ mavsdk mavlink ];
+        };
+      }) // {
+
       overlays.default = (final: prev: rec {
-        mavlink = final._mavlink;
-        mavsdk = final._mavsdk;
-    });
-
-      devShells.default = with pkgs; pkgs.mkShell {
-        packages = [ _mavsdk _mavlink ];
-      };
-    });
+        mavlink = final.callPackage ./pkgs/mavlink { };
+        mavsdk = final.callPackage ./pkgs/mavsdk { inherit mavlink; };
+      });
+    };
 }
